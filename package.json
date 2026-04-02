@@ -1,20 +1,25 @@
 {
   "name": "photovault",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node start.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Galerie photo locale avec double-image hover",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "multer": "^2.1.1",
-    "mysql2": "^3.20.0",
+    "pg": "^8.13.1",
     "qrcode-terminal": "^0.12.0",
     "uuid": "^13.0.0"
   }
