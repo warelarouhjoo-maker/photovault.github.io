@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoVault — Galerie connectée</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0f14;--surface:#161820;--card:#1e2029;
+  --border:#2a2d3a;--accent:#7c6fff;--accent2:#ff6b8a;
+  --gold:#ffd166;--text:#dde0ec;--muted:#6b7280;
+  --green:#06d6a0;--r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh}
+
+/* ── SIDEBAR ── */
+#sidebar{width:270px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.logo{padding:22px 18px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.logo h1{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;letter-spacing:-.3px}
+.conn-badge{font-size:.62rem;padding:3px 8px;border-radius:20px;font-weight:600;margin-left:auto;flex-shrink:0}
+.conn-badge.ok{background:rgba(6,214,160,.15);color:var(--green);border:1px solid rgba(6,214,160,.25)}
+.conn-badge.err{background:rgba(255,107,138,.12);color:var(--accent2);border:1px solid rgba(255,107,138,.2)}
+.conn-badge.loading{background:rgba(124,111,255,.1);color:var(--accent);border:1px solid rgba(124,111,255,.2)}
+
+.stats-row{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.stat{flex:1;background:var(--card);border-radius:10px;padding:8px;text-align:center;border:1px solid var(--border)}
+.stat .n{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent)}
+.stat .l{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:2px}
+
+.sb-label{padding:10px 18px 4px;font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600}
+#album-list{flex:1;overflow-y:auto;padding:4px 8px 8px}
+#album-list::-webkit-scrollbar{width:4px}
+#album-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.al-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:2px;position:relative}
+.al-item:hover{background:var(--card)}
+.al-item.active{background:rgba(124,111,255,.13)}
+.al-item.active::before{content:'';position:absolute;left:0;top:22%;bottom:22%;width:3px;border-radius:0 2px 2px 0;background:var(--accent)}
+.al-thumb{width:32px;height:32px;border-radius:7px;object-fit:cover;background:var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.9rem;overflow:hidden}
+.al-thumb img{width:100%;height:100%;object-fit:cover}
+.al-info{flex:1;min-width:0}
+.al-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.al-count{font-size:.68rem;color:var(--muted)}
+.al-del{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:5px;font-size:.75rem;opacity:0;transition:opacity .15s}
+.al-item:hover .al-del{opacity:1}
+.al-del:hover{color:var(--accent2)}
+
+.sb-actions{padding:10px 10px 14px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border)}
+.btn-sb{width:100%;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-sb:hover{border-color:var(--accent);color:var(--accent);background:rgba(124,111,255,.06)}
+.btn-sb.filled{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-weight:600;opacity:1}
+.btn-sb.filled:hover{opacity:.88;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:rgba(14,15,20,.9);backdrop-filter:blur(12px)}
+#topbar h2{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-wrap{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 12px;transition:border-color .15s}
+.search-wrap:focus-within{border-color:var(--accent)}
+.search-wrap input{background:none;border:none;outline:none;color:var(--text);font-family:'Inter',sans-serif;font-size:.85rem;width:160px}
+.sort-sel{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-family:'Inter',sans-serif;font-size:.82rem;cursor:pointer}
+.view-btns{display:flex;gap:4px}
+.view-btn{background:none;border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:.9rem;transition:all .15s}
+.view-btn.active,.view-btn:hover{background:var(--card);border-color:var(--accent);color:var(--accent)}
+
+#content{flex:1;overflow-y:auto;padding:18px 22px 32px}
+#content::-webkit-scrollbar{width:5px}
+#content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── PHOTO GRID ── */
+#photo-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+#photo-grid.list{grid-template-columns:1fr}
+
+.photo-card{background:var(--card);border-radius:var(--r);overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:transform .2s,box-shadow .2s,border-color .2s;animation:card-in .3s ease both;position:relative}
+.photo-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5);border-color:rgba(124,111,255,.35)}
+@keyframes card-in{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.photo-card img.thumb{width:100%;aspect-ratio:1;object-fit:cover;display:block;transition:transform .3s;background:var(--border)}
+.photo-card:hover img.thumb{transform:scale(1.05)}
+
+.card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 55%);opacity:0;transition:opacity .2s;display:flex;flex-direction:column;justify-content:flex-end;padding:12px}
+.photo-card:hover .card-overlay{opacity:1}
+.card-title{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.card-meta{font-size:.67rem;color:rgba(255,255,255,.5);margin-top:2px}
+.card-actions{display:flex;gap:5px;margin-top:8px}
+.ca-btn{padding:3px 10px;border-radius:6px;border:none;font-size:.68rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.ca-btn.edit{background:var(--accent);color:#fff}
+.ca-btn.del{background:var(--accent2);color:#fff}
+
+/* List mode */
+#photo-grid.list .photo-card{display:flex;align-items:center;gap:14px;padding:10px}
+#photo-grid.list .card-img-wrap{width:52px;height:52px;flex-shrink:0;border-radius:8px;overflow:hidden}
+#photo-grid.list img.thumb{aspect-ratio:1;width:100%;height:100%}
+#photo-grid.list .card-overlay{position:static;opacity:1;background:none;padding:0;flex:1}
+#photo-grid.list .card-title{color:var(--text)}
+#photo-grid.list .card-actions{display:none}
+#photo-grid.list .photo-card:hover img.thumb,.photo-card.list:hover{transform:none}
+
+/* ── STATES ── */
+#offline-screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;text-align:center;padding:40px}
+#offline-screen.show{display:flex}
+.offline-icon{font-size:3.5rem;opacity:.25}
+#offline-screen h2{font-family:'Syne',sans-serif;font-size:1.4rem;color:var(--muted)}
+#offline-screen p{font-size:.88rem;color:var(--muted);max-width:380px;line-height:1.65}
+.code-block{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-family:monospace;font-size:.85rem;color:var(--accent);margin-top:4px;text-align:left;white-space:pre}
+.btn-retry{padding:10px 24px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;font-family:'Inter',sans-serif;margin-top:4px;transition:border-color .15s}
+.btn-retry:hover{border-color:var(--accent)}
+
+#empty{display:none;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px}
+#empty.show{display:flex}
+#empty .ei{font-size:2.5rem;opacity:.2}
+#empty p{color:var(--muted);font-size:.9rem}
+
+/* Upload zone */
+#drop-zone{margin-bottom:16px;border:2px dashed var(--border);border-radius:var(--r);padding:20px;text-align:center;cursor:pointer;transition:all .2s;display:none}
+#drop-zone.visible{display:block}
+#drop-zone.drag{border-color:var(--accent);background:rgba(124,111,255,.05)}
+#drop-zone p{color:var(--muted);font-size:.88rem}
+#drop-zone span{color:var(--accent);font-weight:600}
+
+/* Progress */
+#upload-prog{position:fixed;bottom:70px;right:22px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;min-width:210px;display:none;z-index:150}
+#upload-prog p{font-size:.82rem;color:var(--muted);margin-bottom:7px}
+.prog-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s;border-radius:2px}
+
+/* ── LIGHTBOX ── */
+#lb{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.96);display:none;align-items:center;justify-content:center;flex-direction:column}
+#lb.open{display:flex;animation:lbin .18s ease}
+@keyframes lbin{from{opacity:0}to{opacity:1}}
+#lb-img{max-width:92vw;max-height:80vh;object-fit:contain;border-radius:10px;transition:opacity .12s}
+.lb-arrow{position:fixed;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:50%;width:44px;height:44px;color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.lb-arrow:hover{background:rgba(255,255,255,.15)}
+#lb-prev{left:14px}
+#lb-next{right:14px}
+#lb-close{position:fixed;top:14px;right:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:50%;width:36px;height:36px;color:#fff;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#lb-ctr{position:fixed;top:14px;left:50%;transform:translateX(-50%);font-size:.75rem;color:rgba(255,255,255,.35);background:rgba(0,0,0,.5);padding:3px 12px;border-radius:20px}
+#lb-foot{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);text-align:center}
+#lb-foot h3{font-family:'Syne',sans-serif;font-size:1rem;color:#fff}
+#lb-foot p{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:3px}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:90%;max-width:420px;animation:min .22s ease}
+@keyframes min{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:none}}
+.modal h3{font-family:'Syne',sans-serif;font-size:1.15rem;margin-bottom:18px}
+.modal label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
+.modal input,.modal textarea,.modal select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem;outline:none;transition:border-color .15s;margin-bottom:12px}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--accent)}
+.modal textarea{resize:vertical;min-height:72px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.btn-cancel{padding:8px 16px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;font-size:.85rem}
+.btn-save{padding:8px 20px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:.85rem}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:22px;right:22px;z-index:300;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 16px;font-size:.87rem;font-weight:500;pointer-events:none;display:flex;align-items:center;gap:8px;transform:translateY(10px);opacity:0;transition:all .22s}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{border-left:3px solid var(--green)}
+#toast.err{border-left:3px solid var(--accent2)}
+
+/* ── SERVER CONFIG ── */
+#cfg-bar{background:rgba(124,111,255,.08);border-bottom:1px solid rgba(124,111,255,.15);padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--muted);flex-shrink:0}
+#cfg-bar input{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:4px 10px;color:var(--text);font-family:monospace;font-size:.78rem;outline:none;width:200px;transition:border-color .15s}
+#cfg-bar input:focus{border-color:var(--accent)}
+.cfg-btn{padding:4px 12px;border-radius:7px;background:var(--accent);border:none;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── DOUBLE PHOTO HOVER ── */
+.card-img-wrap{position:relative;overflow:hidden}
+.card-img-wrap .thumb-hover{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transition:opacity .35s ease;z-index:1;background:var(--border)
+}
+.card-img-wrap:hover .thumb-hover{opacity:1}
+.card-img-wrap .thumb{transition:transform .3s, opacity .35s ease;z-index:0;position:relative}
+/* Quand on frappe le titre dans le modal → swap animé */
+.photo-card.title-preview .thumb{opacity:0}
+.photo-card.title-preview .thumb-hover{opacity:1}
+/* Badge "2ème photo" sur la card */
+.hover-badge{
+  position:absolute;top:8px;right:8px;z-index:5;
+  background:rgba(124,111,255,.85);color:#fff;
+  font-size:.58rem;font-weight:700;padding:3px 7px;border-radius:20px;
+  letter-spacing:.5px;backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.15);
+  pointer-events:none;
+}
+/* Zone hover upload dans le modal */
+.hover-upload-zone{
+  border:2px dashed var(--border);border-radius:10px;padding:14px;
+  text-align:center;cursor:pointer;transition:all .2s;margin-top:4px;
+  background:var(--card);position:relative;overflow:hidden;
+}
+.hover-upload-zone:hover{border-color:var(--accent);background:rgba(124,111,255,.06)}
+.hover-upload-zone.has-img{border-color:rgba(6,214,160,.4);background:rgba(6,214,160,.04)}
+.hover-upload-zone img.hover-preview{
+  width:100%;height:90px;object-fit:cover;border-radius:7px;
+  display:none;margin-bottom:8px;
+}
+.hover-upload-zone.has-img img.hover-preview{display:block}
+.hover-upload-zone p{font-size:.78rem;color:var(--muted)}
+.hover-upload-zone span{color:var(--accent);font-weight:600}
+.btn-rm-hover{
+  position:absolute;top:6px;right:6px;
+  background:var(--accent2);border:none;color:#fff;
+  border-radius:50%;width:20px;height:20px;font-size:.7rem;
+  cursor:pointer;display:none;align-items:center;justify-content:center;
+  z-index:10;
+}
+.hover-upload-zone.has-img .btn-rm-hover{display:flex}
+
+
+
+@media(max-width:680px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;transform:translateX(-270px);transition:transform .3s}
+  #sidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.7)}
+  #main{margin-left:0}
+  #photo-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">📷</div>
+    <h1>PhotoVault</h1>
+    <span class="conn-badge loading" id="conn-badge">⏳ Connexion…</span>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="n" id="s-photos">–</div><div class="l">Photos</div></div>
+    <div class="stat"><div class="n" id="s-albums">–</div><div class="l">Albums</div></div>
+    <div class="stat"><div class="n" id="s-size">–</div><div class="l">Mo</div></div>
+  </div>
+  <div class="sb-label">Albums</div>
+  <div id="album-list"></div>
+  <div class="sb-actions">
+    <button class="btn-sb filled" onclick="document.getElementById('file-input').click()">⬆ Importer des photos</button>
+    <button class="btn-sb" onclick="openAlbumModal()">＋ Nouvel album</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+  <!-- Server config bar -->
+  <div id="cfg-bar">
+    🔌 Serveur :
+    <input type="text" id="server-url" value="http://localhost:3000" placeholder="http://localhost:3000">
+    <button class="cfg-btn" onclick="connect()">Connecter</button>
+    <span id="cfg-status" style="margin-left:4px"></span>
+  </div>
+
+  <div id="topbar">
+    <h2 id="album-title">Ma galerie</h2>
+    <div class="search-wrap">
+      <span style="color:var(--muted);font-size:.85rem">🔍</span>
+      <input id="search" type="text" placeholder="Rechercher…" oninput="debSearch()">
+    </div>
+    <select class="sort-sel" id="sort" onchange="loadPhotos()">
+      <option value="created_at">Date ↓</option>
+      <option value="created_at_asc">Date ↑</option>
+      <option value="title">Nom</option>
+      <option value="size">Taille</option>
+    </select>
+    <div class="view-btns">
+      <button class="view-btn active" id="vg" onclick="setView('grid')" title="Grille">⊞</button>
+      <button class="view-btn" id="vl" onclick="setView('list')" title="Liste">☰</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <!-- Offline screen -->
+    <div id="offline-screen" class="show">
+      <div class="offline-icon">🔌</div>
+      <h2>Serveur non connecté</h2>
+      <p>Lance d'abord le serveur PhotoVault sur ton PC, puis clique sur <strong>Connecter</strong> ci-dessus.</p>
+      <div class="code-block">cd photovault
+node server.js</div>
+      <p style="font-size:.78rem;margin-top:-4px">Puis ouvre <strong>http://localhost:3000</strong><br>dans ton navigateur pour accéder directement.</p>
+      <button class="btn-retry" onclick="connect()">🔄 Réessayer</button>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="drop-zone" class="visible">
+      <p>📂 Glisse des photos ici ou <span onclick="document.getElementById('file-input').click()">clique pour choisir</span></p>
+    </div>
+
+    <!-- Grid -->
+    <div id="photo-grid" style="display:none"></div>
+    <div id="empty"><div class="ei">🔎</div><p>Aucun résultat</p></div>
+  </div>
+</main>
+
+<!-- LIGHTBOX -->
+<div id="lb">
+  <button id="lb-close" onclick="lbClose()">✕</button>
+  <div id="lb-ctr"></div>
+  <img id="lb-img" src="" alt="">
+  <button class="lb-arrow" id="lb-prev" onclick="lbNav(-1)">‹</button>
+  <button class="lb-arrow" id="lb-next" onclick="lbNav(1)">›</button>
+  <div id="lb-foot"><h3 id="lb-name"></h3><p id="lb-info"></p></div>
+</div>
+
+<!-- UPLOAD PROGRESS -->
+<div id="upload-prog">
+  <p id="prog-label">Import en cours…</p>
+  <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+</div>
+
+<!-- MODAL ALBUM -->
+<div class="modal-bg" id="modal-album">
+  <div class="modal">
+    <h3>Nouvel album</h3>
+    <label>Nom</label>
+    <input type="text" id="alb-name" placeholder="ex: Vacances 2024">
+    <label>Description</label>
+    <textarea id="alb-desc" placeholder="Quelques mots…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-album')">Annuler</button>
+      <button class="btn-save" onclick="saveAlbum()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT PHOTO -->
+<div class="modal-bg" id="modal-edit">
+  <div class="modal">
+    <h3>Modifier la photo</h3>
+    <input type="hidden" id="edit-id">
+    <label>Titre</label>
+    <input type="text" id="edit-title" oninput="previewTitleSwap(this.value)">
+    <label>Description</label>
+    <textarea id="edit-desc"></textarea>
+    <label>Album</label>
+    <select id="edit-album"></select>
+    <label>Photo alternative <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:.72rem">(s'affiche au survol / en tapant le titre)</span></label>
+    <div class="hover-upload-zone" id="hover-zone" onclick="document.getElementById('hover-input').click()">
+      <img class="hover-preview" id="hover-preview" src="" alt="aperçu hover">
+      <p id="hover-zone-text"><span>Choisir une 2ème photo</span><br>ou glisser ici</p>
+      <button class="btn-rm-hover" onclick="removeHover(event)" title="Supprimer la 2ème photo">✕</button>
+    </div>
+    <input type="file" id="hover-input" accept="image/*" style="display:none" onchange="onHoverFileSelected(this)">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-edit')">Annuler</button>
+      <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- HIDDEN INPUTS -->
+<input type="file" id="file-input" multiple accept="image/*" style="display:none" onchange="uploadFiles(this.files)">
+
+<div id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+let API = localStorage.getItem('pvServer') || 'http://localhost:3000';
+let connected = false;
+let albums = [];
+let photos = [];
+let lbIdx = 0;
+let currentAlbum = null;
+let searchTimer;
+
+document.getElementById('server-url').value = API;
+
+// ─── Connexion ────────────────────────────────────────────────────────────────
+async function connect() {
+  API = document.getElementById('server-url').value.replace(/\/$/, '');
+  localStorage.setItem('pvServer', API);
+  setBadge('loading', '⏳ …');
+  document.getElementById('cfg-status').textContent = '';
+  try {
+    const r = await fetch(API + '/api/stats', { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) throw new Error();
+    const s = await r.json();
+    connected = true;
+    setBadge('ok', '✅ Connecté');
+    document.getElementById('cfg-status').textContent = '';
+    document.getElementById('offline-screen').classList.remove('show');
+    document.getElementById('drop-zone').classList.add('visible');
+    updateStats(s);
+    await loadAlbums();
+    await loadPhotos();
+  } catch {
+    connected = false;
+    setBadge('err', '❌ Hors ligne');
+    document.getElementById('cfg-status').textContent = 'Serveur introuvable — lance: node server.js';
+    document.getElementById('offline-screen').classList.add('show');
+    document.getElementById('photo-grid').style.display = 'none';
+  }
+}
+
+function setBadge(type, label) {
+  const b = document.getElementById('conn-badge');
+  b.className = 'conn-badge ' + type;
+  b.textContent = label;
+}
+
+// ─── Albums ───────────────────────────────────────────────────────────────────
+async function loadAlbums() {
+  albums = await api('/api/albums');
+  renderAlbums();
+}
+
+function renderAlbums() {
+  const list = document.getElementById('album-list');
+  list.innerHTML = '';
+  list.appendChild(makeAlbumEl(null, '🌐 Toutes les photos', photos.length));
+  albums.forEach(a => list.appendChild(makeAlbumEl(a.id, a.name, a.photo_count || 0, a.cover_filename)));
+}
+
+function makeAlbumEl(id, name, count, coverFn) {
+  const d = document.createElement('div');
+  d.className = 'al-item' + (currentAlbum === id ? ' active' : '');
+  d.onclick = () => selectAlbum(id, name);
+  const thumb = coverFn
+    ? `<div class="al-thumb"><img src="${API}/photos/${coverFn}" loading="lazy"></div>`
+    : `<div class="al-thumb">${id === null ? '🌐' : '📁'}</div>`;
+  const del = id && id !== 'default'
+    ? `<button class="al-del" onclick="deleteAlbum(event,'${id}')">✕</button>` : '';
+  d.innerHTML = `${thumb}<div class="al-info"><div class="al-name">${name}</div><div class="al-count">${count} photo${count!==1?'s':''}</div></div>${del}`;
+  return d;
+}
+
+function selectAlbum(id, name) {
+  currentAlbum = id;
+  document.getElementById('album-title').textContent = name || 'Ma galerie';
+  document.getElementById('search').value = '';
+  renderAlbums();
+  loadPhotos();
+}
+
+async function deleteAlbum(e, id) {
+  e.stopPropagation();
+  if (!confirm('Supprimer cet album et toutes ses photos ?')) return;
+  await api(`/api/albums/${id}`, 'DELETE');
+  if (currentAlbum === id) currentAlbum = null;
+  await loadAlbums();
+  await loadPhotos();
+  await refreshStats();
+  toast('Album supprimé', 'ok');
+}
+
+async function saveAlbum() {
+  const name = document.getElementById('alb-name').value.trim();
+  if (!name) { toast('Nom requis', 'err'); return; }
+  await api('/api/albums', 'POST', { name, description: document.getElementById('alb-desc').value });
+  closeModal('modal-album');
+  await loadAlbums();
+  toast('Album créé !', 'ok');
+}
+
+// ─── Photos ───────────────────────────────────────────────────────────────────
+async function loadPhotos() {
+  if (!connected) return;
+  const sortVal = document.getElementById('sort').value;
+  const [sort, order] = sortVal === 'created_at_asc' ? ['created_at','ASC'] : [sortVal, 'DESC'];
+  const search = document.getElementById('search').value;
+  const params = new URLSearchParams({ sort, order });
+  if (currentAlbum) params.set('album_id', currentAlbum);
+  if (search) params.set('search', search);
+  photos = await api(`/api/photos?${params}`);
+  renderPhotos();
+  renderAlbums();
+}
+
+function renderPhotos() {
+  const grid  = document.getElementById('photo-grid');
+  const empty = document.getElementById('empty');
+  grid.innerHTML = '';
+  if (!photos.length) {
+    grid.style.display = 'none';
+    empty.classList.add('show');
+    return;
+  }
+  empty.classList.remove('show');
+  grid.style.display = 'grid';
+  photos.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    card.dataset.id = p.id;
+    card.style.animationDelay = Math.min(i * 18, 500) + 'ms';
+    const title = p.title || p.original;
+    const hoverImg = p.filename_hover
+      ? `<img class="thumb-hover" src="${API}/photos/${p.filename_hover}" loading="lazy" alt="${title} hover">`
+      : '';
+    const hoverBadge = p.filename_hover ? `<span class="hover-badge">2\u00e8me \u2726</span>` : '';
+    card.innerHTML = `
+      <div class="card-img-wrap" onclick="openLb(${i})">
+        <img class="thumb" src="${API}/photos/${p.filename}" alt="${title}" loading="lazy">
+        ${hoverImg}
+        ${hoverBadge}
+        <div class="card-overlay">
+          <div class="card-title">${title}</div>
+          <div class="card-meta">${fmtSize(p.size)} \u00b7 ${p.created_at?.slice(0,10) || ''}</div>
+          <div class="card-actions">
+            <button class="ca-btn edit" onclick="openEdit(event,'${p.id}')">&#9999;&#65039; Modifier</button>
+            <button class="ca-btn del"  onclick="delPhoto(event,'${p.id}')">&#128465;</button>
+          </div>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+async function uploadFiles(files) {
+  if (!connected) { toast('Serveur non connecté', 'err'); return; }
+  if (!files.length) return;
+  const prog = document.getElementById('upload-prog');
+  const fill = document.getElementById('prog-fill');
+  prog.style.display = 'block';
+  document.getElementById('prog-label').textContent = `Import de ${files.length} photo(s)…`;
+  fill.style.width = '20%';
+
+  const fd = new FormData();
+  Array.from(files).forEach(f => fd.append('photos', f));
+  if (currentAlbum) fd.append('album_id', currentAlbum);
+
+  try {
+    fill.style.width = '60%';
+    const r = await fetch(API + '/api/photos/upload', { method: 'POST', body: fd });
+    const data = await r.json();
+    fill.style.width = '100%';
+    setTimeout(() => { prog.style.display='none'; fill.style.width='0%'; }, 700);
+    await loadPhotos();
+    await loadAlbums();
+    await refreshStats();
+    toast(`✅ ${data.length} photo(s) importée(s)`, 'ok');
+  } catch {
+    prog.style.display = 'none';
+    toast('Erreur lors de l\'import', 'err');
+  }
+  document.getElementById('file-input').value = '';
+}
+
+// ─── Delete photo ─────────────────────────────────────────────────────────────
+async function delPhoto(e, id) {
+  e.stopPropagation();
+  if (!confirm('Supprimer cette photo ?')) return;
+  await api(`/api/photos/${id}`, 'DELETE');
+  await loadPhotos();
+  await loadAlbums();
+  await refreshStats();
+  toast('Photo supprimée', 'ok');
+}
+
+// ─── Edit photo ───────────────────────────────────────────────────────────────
+let hoverFileToUpload = null; // fichier hover en attente d'upload
+
+function openEdit(e, id) {
+  e.stopPropagation();
+  const p = photos.find(x => x.id === id);
+  if (!p) return;
+  hoverFileToUpload = null;
+  document.getElementById('edit-id').value    = id;
+  document.getElementById('edit-title').value = p.title || '';
+  document.getElementById('edit-desc').value  = p.description || '';
+  const sel = document.getElementById('edit-album');
+  sel.innerHTML = albums.map(a => `<option value="${a.id}"${a.id===p.album_id?' selected':''}>${a.name}</option>`).join('');
+
+  // Zone hover
+  const zone = document.getElementById('hover-zone');
+  const preview = document.getElementById('hover-preview');
+  const ztext = document.getElementById('hover-zone-text');
+  if (p.filename_hover) {
+    zone.classList.add('has-img');
+    preview.src = API + '/photos/' + p.filename_hover;
+    ztext.style.display = 'none';
+  } else {
+    zone.classList.remove('has-img');
+    preview.src = '';
+    ztext.style.display = '';
+  }
+  openModal('modal-edit');
+}
+
+function onHoverFileSelected(input) {
+  if (!input.files[0]) return;
+  hoverFileToUpload = input.files[0];
+  const zone = document.getElementById('hover-zone');
+  const preview = document.getElementById('hover-preview');
+  const ztext = document.getElementById('hover-zone-text');
+  zone.classList.add('has-img');
+  preview.src = URL.createObjectURL(hoverFileToUpload);
+  ztext.style.display = 'none';
+  // Apercu live sur la card
+  previewHoverOnCard(preview.src);
+}
+
+function previewHoverOnCard(src) {
+  const id = document.getElementById('edit-id').value;
+  const card = document.querySelector(`.photo-card[data-id="${id}"]`);
+  if (!card) return;
+  let hImg = card.querySelector('.thumb-hover');
+  if (!hImg) {
+    hImg = document.createElement('img');
+    hImg.className = 'thumb-hover';
+    card.querySelector('.card-img-wrap').insertBefore(hImg, card.querySelector('.card-overlay'));
+  }
+  hImg.src = src;
+}
+
+async function removeHover(e) {
+  e.stopPropagation();
+  const id = document.getElementById('edit-id').value;
+  hoverFileToUpload = null;
+  document.getElementById('hover-zone').classList.remove('has-img');
+  document.getElementById('hover-preview').src = '';
+  document.getElementById('hover-zone-text').style.display = '';
+  document.getElementById('hover-input').value = '';
+  // Si la photo avait déjà un hover en DB, on le supprime
+  const p = photos.find(x => x.id === id);
+  if (p?.filename_hover) {
+    await api(`/api/photos/${id}/hover`, 'DELETE');
+    p.filename_hover = null;
+    // Retirer de la card
+    const card = document.querySelector(`.photo-card[data-id="${id}"]`);
+    card?.querySelector('.thumb-hover')?.remove();
+    card?.querySelector('.hover-badge')?.remove();
+    toast('Photo alternative supprimée', 'ok');
+  }
+}
+
+// Swap preview quand on tape le titre (sur la card en fond)
+function previewTitleSwap(val) {
+  const id = document.getElementById('edit-id').value;
+  const card = document.querySelector(`.photo-card[data-id="${id}"]`);
+  if (!card) return;
+  const hasHover = !!card.querySelector('.thumb-hover');
+  if (hasHover) {
+    if (val.length > 0) card.classList.add('title-preview');
+    else card.classList.remove('title-preview');
+  }
+}
+
+async function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  // 1. Mettre à jour les métadonnées
+  await api(`/api/photos/${id}`, 'PUT', {
+    title:       document.getElementById('edit-title').value,
+    description: document.getElementById('edit-desc').value,
+    album_id:    document.getElementById('edit-album').value
+  });
+  // 2. Uploader la hover photo si sélectionnée
+  if (hoverFileToUpload) {
+    const fd = new FormData();
+    fd.append('hover', hoverFileToUpload);
+    await fetch(`${API}/api/photos/${id}/hover`, {
+      method: 'POST',
+      body: fd
+    });
+    hoverFileToUpload = null;
+  }
+  closeModal('modal-edit');
+  // Retirer le titre-preview highlight
+  document.querySelector(`.photo-card[data-id="${id}"]`)?.classList.remove('title-preview');
+  await loadPhotos();
+  await loadAlbums();
+  toast('Photo mise à jour !', 'ok');
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function openLb(i) { lbIdx = i; showLb(); document.getElementById('lb').classList.add('open'); }
+function lbClose()  { document.getElementById('lb').classList.remove('open'); }
+function showLb() {
+  const p = photos[lbIdx];
+  const img = document.getElementById('lb-img');
+  img.style.opacity = '.3';
+  img.src = API + '/photos/' + p.filename;
+  img.onload = () => img.style.opacity = '1';
+  document.getElementById('lb-name').textContent = p.title || p.original;
+  document.getElementById('lb-info').textContent = `${fmtSize(p.size)} · ${p.created_at?.slice(0,10) || ''}`;
+  document.getElementById('lb-ctr').textContent  = `${lbIdx+1} / ${photos.length}`;
+}
+function lbNav(d) { lbIdx = (lbIdx+d+photos.length)%photos.length; showLb(); }
+document.getElementById('lb').addEventListener('click', e => { if(e.target.id==='lb') lbClose(); });
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lb').classList.contains('open')) return;
+  if (e.key==='ArrowRight') lbNav(1);
+  if (e.key==='ArrowLeft')  lbNav(-1);
+  if (e.key==='Escape')     lbClose();
+});
+let tx=0;
+document.getElementById('lb').addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.getElementById('lb').addEventListener('touchend',e=>{ const d=e.changedTouches[0].clientX-tx; if(Math.abs(d)>50) lbNav(d<0?1:-1); });
+
+// ─── Drag & drop ──────────────────────────────────────────────────────────────
+let dc=0;
+document.addEventListener('dragenter',e=>{e.preventDefault();dc++;document.getElementById('drop-zone').classList.add('drag')});
+document.addEventListener('dragleave',()=>{dc--;if(!dc)document.getElementById('drop-zone').classList.remove('drag')});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{
+  e.preventDefault();dc=0;document.getElementById('drop-zone').classList.remove('drag');
+  const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+  if(files.length) uploadFiles(files);
+  else toast('Aucune image dans les fichiers déposés','err');
+});
+
+// ─── View mode ────────────────────────────────────────────────────────────────
+function setView(m) {
+  document.getElementById('photo-grid').className = m==='list'?'list':'';
+  document.getElementById('vg').classList.toggle('active',m==='grid');
+  document.getElementById('vl').classList.toggle('active',m==='list');
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+async function refreshStats() {
+  const s = await api('/api/stats');
+  updateStats(s);
+}
+function updateStats(s) {
+  document.getElementById('s-photos').textContent = s.photos ?? '–';
+  document.getElementById('s-albums').textContent = s.albums ?? '–';
+  document.getElementById('s-size').textContent   = s.size ? (s.size/1024/1024).toFixed(1) : '0';
+}
+
+// ─── Modals ───────────────────────────────────────────────────────────────────
+function openAlbumModal() { document.getElementById('alb-name').value=''; document.getElementById('alb-desc').value=''; openModal('modal-album'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+document.getElementById('alb-name').addEventListener('keydown', e => { if(e.key==='Enter') saveAlbum(); });
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+async function api(path, method='GET', body) {
+  const opts = { method, headers:{} };
+  if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  try {
+    const r = await fetch(API+path, opts);
+    return r.json();
+  } catch { return method==='GET'?[]:{}; }
+}
+function debSearch() { clearTimeout(searchTimer); searchTimer=setTimeout(loadPhotos,300); }
+function fmtSize(b) {
+  if(!b) return '';
+  if(b<1024) return b+' o';
+  if(b<1048576) return (b/1024).toFixed(0)+' Ko';
+  return (b/1048576).toFixed(1)+' Mo';
+}
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show '+type;
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ─── Auto-connect au démarrage ────────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
